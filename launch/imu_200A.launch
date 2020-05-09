@@ -6,7 +6,7 @@
         output="screen">
     <param name="port" value="/dev/ttyUSB0"/>
     <param name="model" value="200A"/>
-    <param name="baud" value="115200"/>
+    <param name="baud" value="921600"/>
   </node>
 
 </launch>
