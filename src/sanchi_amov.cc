@@ -354,6 +354,13 @@ int main(int argc, char** argv)
       usleep(1000 * 1000);
       data_length = 61;
   }
+  else if(model == "300A")
+  {
+      uint8_t speed[7] = {0xA5, 0x5A, 0x05, 0xA8, 0x64, 0x11, 0xaa};
+      write(fd_, speed, 7);
+      usleep(1000 * 1000);
+      data_length = 61;
+  }
   else if(model == "200S")
   {
       uint8_t speed[7] = {0xA5, 0x5A, 0x05, 0xA8, 0x64, 0x11, 0xaa};
@@ -494,6 +501,53 @@ int main(int argc, char** argv)
                   R = Eigen::AngleAxisd(ea0[0], ::Eigen::Vector3d::UnitZ())  
                       * Eigen::AngleAxisd(ea0[1], ::Eigen::Vector3d::UnitY())  
                       * Eigen::AngleAxisd(ea0[2], ::Eigen::Vector3d::UnitX());  
+                  Eigen::Quaterniond q;   
+                  q = R; 
+                  msg.orientation.w = (double)q.w();
+                  msg.orientation.x = (double)q.x();
+                  msg.orientation.y = (double)q.y();
+                  msg.orientation.z = (double)q.z();    
+                  
+                  msg.header.stamp = ros::Time::now();
+                  msg.header.frame_id = frame_id;
+                  msg.angular_velocity.x = d2ieee754(data + 15) * M_PI /180;
+          	      msg.angular_velocity.y = d2ieee754(data + 19) * M_PI /180;
+          	      msg.angular_velocity.z = d2ieee754(data + 23) * M_PI /180;
+                  msg.linear_acceleration.x = d2ieee754(data + 3) * 1e-3 * 9.81;
+                  msg.linear_acceleration.y = d2ieee754(data + 7) * 1e-3 * 9.81;
+                  msg.linear_acceleration.z = d2ieee754(data + 11) * 1e-3 * 9.81;
+                  pub.publish(msg);
+
+                  msg_mag.magnetic_field.x = d2ieee754(data + 27);
+                  msg_mag.magnetic_field.y = d2ieee754(data + 31);
+                  msg_mag.magnetic_field.z = d2ieee754(data + 35);
+                  msg_mag.header.stamp = msg.header.stamp;
+                  msg_mag.header.frame_id = msg.header.frame_id;
+                  pub_mag.publish(msg_mag);
+
+              found = true;
+          }
+		  else if(model == "300A" && data_raw[kk] == 0x55 && data_raw[kk + 1] == 0xAA && data_raw[kk + data_length - 1] == 0xBB )
+          {
+              unsigned char *data = data_raw + kk;
+              uint32_t checksum = 0;
+              for(int i = 2; i < data_length - 2; ++i)
+                  checksum += (uint32_t) data[i];
+  
+              uint16_t check = checksum % 256;
+              uint16_t check_true = data[data_length - 2];
+              if (check != check_true)
+              {
+                  continue;
+              }
+
+                  Eigen::Vector3d ea0(d2ieee754(data + 39) * M_PI / 180.0,
+                                      d2ieee754(data + 43) * M_PI / 180.0,
+                                      d2ieee754(data + 47) * M_PI / 180.0);  
+                  Eigen::Matrix3d R;
+                  R = Eigen::AngleAxisd(ea0[0], ::Eigen::Vector3d::UnitY())  
+                      * Eigen::AngleAxisd(-ea0[1], ::Eigen::Vector3d::UnitX())  
+                      * Eigen::AngleAxisd(-ea0[2], ::Eigen::Vector3d::UnitZ());  
                   Eigen::Quaterniond q;   
                   q = R; 
                   msg.orientation.w = (double)q.w();
